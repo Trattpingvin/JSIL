@@ -344,8 +344,17 @@ JSIL.ImplementExternals("Microsoft.Xna.Framework.Audio.SoundBank", function ($) 
 JSIL.ImplementExternals("Microsoft.Xna.Framework.Media.MediaPlayer", function ($) {
   $.RawMethod(true, ".cctor2", function () {
     Microsoft.Xna.Framework.Media.MediaPlayer.repeat = false;
+    Microsoft.Xna.Framework.Media.MediaPlayer.volume = 1.0;
     Microsoft.Xna.Framework.Media.MediaPlayer.currentSong = null;
   });
+
+  $.Method({Static:true, Public:true }, "get_State", 
+    (new JSIL.MethodSignature($xnaasms[0].TypeRef("Microsoft.Xna.Framework.Media.MediaState"), [], [])), 
+    function get_State () {
+        return Microsoft.Xna.Framework.Media.MediaState.Stopped;
+    }
+  );
+
 
   $.Method({Static:true , Public:true }, "get_IsRepeating", 
     (new JSIL.MethodSignature($.Boolean, [], [])), 
@@ -392,6 +401,20 @@ JSIL.ImplementExternals("Microsoft.Xna.Framework.Media.MediaPlayer", function ($
       Microsoft.Xna.Framework.Media.MediaPlayer.repeat = value;
     }
   );
+
+  $.Method({Static:true , Public:true }, "get_Volume", 
+    (new JSIL.MethodSignature($.Single, [], [])), 
+    function get_Volume () {
+      return Microsoft.Xna.Framework.Media.MediaPlayer.volume;
+    }
+  );
+
+  $.Method({Static:true , Public:true }, "set_Volume", 
+    (new JSIL.MethodSignature(null, [$.Single], [])), 
+    function set_Volume (value) {
+      Microsoft.Xna.Framework.Media.MediaPlayer.volume = value;
+    }
+  );
 });
 
 JSIL.ImplementExternals("Microsoft.Xna.Framework.Audio.SoundEffectInstance", function ($) {
@@ -431,7 +454,7 @@ JSIL.ImplementExternals("Microsoft.Xna.Framework.Audio.SoundEffectInstance", fun
   $.Method({Static:false, Public:false}, "Dispose", 
     (new JSIL.MethodSignature(null, [$.Boolean], [])), 
     function Dispose (disposing) {
-      this.isDisposed = true;
+      this.isDisposed = disposing;
     }
   );
 
@@ -544,6 +567,7 @@ JSIL.ImplementExternals("Microsoft.Xna.Framework.Audio.SoundEffectInstance", fun
         this.instance.set_volume(value);
     }
   );
+
 
   $.Method({Static:false, Public:true }, "set_Pan", 
     new JSIL.MethodSignature(null, [$.Single], []), 

@@ -616,6 +616,26 @@ JSIL.ImplementExternals("Microsoft.Xna.Framework.Vector2", function ($) {
     }
   );
 
+  $.Method({Static:true , Public:true }, "Min", 
+    (new JSIL.MethodSignature($xnaasms[0].TypeRef("Microsoft.Xna.Framework.Vector2"), [$xnaasms[0].TypeRef("Microsoft.Xna.Framework.Vector2"), $xnaasms[0].TypeRef("Microsoft.Xna.Framework.Vector2")], [])), 
+    function Min (v1, v2) {
+      var result = JSIL.CreateInstanceObject(Microsoft.Xna.Framework.Vector2.prototype);
+      result.X = v1.X<v2.X ? v1.X : v2.X;
+      result.Y = v1.Y<v2.Y ? v1.Y : v2.Y;
+      return result;
+    }
+  );
+
+    $.Method({Static:true , Public:true }, "Max", 
+    (new JSIL.MethodSignature($xnaasms[0].TypeRef("Microsoft.Xna.Framework.Vector2"), [$xnaasms[0].TypeRef("Microsoft.Xna.Framework.Vector2"), $xnaasms[0].TypeRef("Microsoft.Xna.Framework.Vector2")], [])), 
+    function Max (v1, v2) {
+      var result = JSIL.CreateInstanceObject(Microsoft.Xna.Framework.Vector2.prototype);
+      result.X = v1.X>v2.X ? v1.X : v2.X;
+      result.Y = v1.Y>v2.Y ? v1.Y : v2.Y;
+      return result;
+    }
+  );
+
   $.Method({Static:true , Public:true }, "Dot", 
     (new JSIL.MethodSignature($.Single, [$xnaasms[0].TypeRef("Microsoft.Xna.Framework.Vector2"), $xnaasms[0].TypeRef("Microsoft.Xna.Framework.Vector2")], [])), 
     function Dot (vector1, vector2) {
@@ -1568,18 +1588,25 @@ JSIL.ImplementExternals("Microsoft.Xna.Framework.Game", function ($) {
 
   $.RawMethod(false, "_TimeStep", function Game_TimeStep (elapsed, frameDelay, millisecondInTicks, maxElapsedTimeMs, longFrame) {
     var failed = true;
-
+    console.time("timestep")
     try {
       if (this.isFixedTimeStep && !this.suppressFrameskip && !this._profilingMode) {
+        console.time("fixedtimestep")
         this._FixedTimeStep(elapsed, frameDelay, millisecondInTicks, maxElapsedTimeMs, longFrame);
+        console.timeEnd("fixedtimestep")
       } else {
+        console.time("variabletimestep")
         this._VariableTimeStep(elapsed, frameDelay, millisecondInTicks, maxElapsedTimeMs, longFrame);
+        console.timeEnd("variabletimestep")
       }
-
+      console.time("renderaframe")
       this._RenderAFrame();
+      console.timeEnd("renderaframe")
 
       failed = false;
     } finally {
+      console.time("timestep finally")
+      console.timeEnd("timestep")
       if (failed || Microsoft.Xna.Framework.Game._QuitForced) {
         this.Exit();
       } else if (Microsoft.Xna.Framework.Game._PauseForced) {
@@ -1587,6 +1614,7 @@ JSIL.ImplementExternals("Microsoft.Xna.Framework.Game", function ($) {
       } else {
         this._QueueStep();
       }
+      console.timeEnd("timestep finally")
     }
   });
 

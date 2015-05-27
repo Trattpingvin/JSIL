@@ -128,6 +128,29 @@ JSIL.ImplementExternals("Microsoft.Xna.Framework.Input.MouseState", function ($)
     }
   );
 
+
+///// FIXME
+  $.Method({Static:false, Public:true }, "get_XButton1", 
+    (new JSIL.MethodSignature($xnaasms[0].TypeRef("Microsoft.Xna.Framework.Input.ButtonState"), [], [])), 
+    function get_XButton1 () {
+      return false;
+    }
+  );
+
+  $.Method({Static:false, Public:true }, "get_XButton2", 
+    (new JSIL.MethodSignature($xnaasms[0].TypeRef("Microsoft.Xna.Framework.Input.ButtonState"), [], [])), 
+    function get_XButton2 () {
+      return false;
+    }
+  );
+$.Method({Static:false, Public:true }, "get_ScrollWheelValue", 
+    (new JSIL.MethodSignature($.Int32, [], [])), 
+    function get_ScrollWheelValue () {
+      return 0;
+    }
+  );
+    
+
   $.Method({Static:false, Public:true }, "get_MiddleButton", 
     (new JSIL.MethodSignature($xnaasms[0].TypeRef("Microsoft.Xna.Framework.Input.ButtonState"), [], [])), 
     function get_MiddleButton () {
