@@ -12,6 +12,7 @@ JSIL.DeclareNamespace("JSIL");
 $jsilxna.allowWebGL = true;
 $jsilxna.testedWebGL = false;
 $jsilxna.workingWebGL = false;
+var steps = 0
 
 var $xnaasms = new JSIL.AssemblyCollection({
   corlib: "mscorlib",
@@ -1588,25 +1589,26 @@ JSIL.ImplementExternals("Microsoft.Xna.Framework.Game", function ($) {
 
   $.RawMethod(false, "_TimeStep", function Game_TimeStep (elapsed, frameDelay, millisecondInTicks, maxElapsedTimeMs, longFrame) {
     var failed = true;
-    console.time("timestep")
+    //console.time("timestep")
+    steps++;
     try {
       if (this.isFixedTimeStep && !this.suppressFrameskip && !this._profilingMode) {
-        console.time("fixedtimestep")
+        //console.time("fixedtimestep")
         this._FixedTimeStep(elapsed, frameDelay, millisecondInTicks, maxElapsedTimeMs, longFrame);
-        console.timeEnd("fixedtimestep")
+        //console.timeEnd("fixedtimestep")
       } else {
-        console.time("variabletimestep")
+        //console.time("variabletimestep")
         this._VariableTimeStep(elapsed, frameDelay, millisecondInTicks, maxElapsedTimeMs, longFrame);
-        console.timeEnd("variabletimestep")
+        //console.timeEnd("variabletimestep")
       }
-      console.time("renderaframe")
+      //console.time("renderaframe")
       this._RenderAFrame();
-      console.timeEnd("renderaframe")
+      //console.timeEnd("renderaframe")
 
       failed = false;
     } finally {
-      console.time("timestep finally")
-      console.timeEnd("timestep")
+      //console.time("timestep finally")
+      //console.timeEnd("timestep")
       if (failed || Microsoft.Xna.Framework.Game._QuitForced) {
         this.Exit();
       } else if (Microsoft.Xna.Framework.Game._PauseForced) {
@@ -1614,7 +1616,7 @@ JSIL.ImplementExternals("Microsoft.Xna.Framework.Game", function ($) {
       } else {
         this._QueueStep();
       }
-      console.timeEnd("timestep finally")
+      //console.timeEnd("timestep finally")
     }
   });
 
