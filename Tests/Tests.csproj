@@ -148,6 +148,7 @@
     <None Include="EmscriptenTestCases\PassPtrToPinnedArray.cs" />
     <None Include="AnalysisTestCases\Issue696.cs" />
     <None Include="EmscriptenTestCases\EnumRoundTrip.cs" />
+    <None Include="AnalysisTestCases\FNABaseOffset.cs" />
     <Compile Include="EmscriptenTestCases\ProxiedExternFunction.cs" />
     <None Include="EmscriptenTestCases\IntPtrZeroEquality.cs" />
     <None Include="EmscriptenTestCases\StringArrayParameter.cs" />
@@ -437,6 +438,7 @@
     <None Include="UnsafeTestCases\CastAddressOfValueToArray.cs" />
     <None Include="UnsafeTestCases\IgnorePointerFields.cs" />
     <None Include="UnsafeTestCases\PointerWriteConversion_Issue686.cs" />
+    <None Include="UnsafeTestCases\ModifyPackedStructArrayElementStructField.cs" />
     <Compile Include="XMLTests.cs" />
     <Compile Include="DependencyTests.cs" />
     <None Include="TestCases\GenericParameterNameShadowing.cs" />

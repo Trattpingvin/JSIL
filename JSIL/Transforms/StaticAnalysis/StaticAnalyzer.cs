@@ -266,9 +266,10 @@ namespace JSIL.Transforms {
                     parentNodeIndices, StatementIndex, NodeIndex, field.Field.DeclaringType
                 ));
             } else if (v != null) {
-                State.SideEffects.Add(new FunctionAnalysis1stPass.SideEffect(
-                    parentNodeIndices, StatementIndex, NodeIndex, v.Identifier, "field modified"
-                ));
+                if (fa.IsWrite)
+                    State.SideEffects.Add(new FunctionAnalysis1stPass.SideEffect(
+                        parentNodeIndices, StatementIndex, NodeIndex, v.Identifier, "field modified"
+                    ));
             }
 
             bool isRead = true;
@@ -403,7 +404,7 @@ namespace JSIL.Transforms {
                 ));
 
                 // HACK: Synthesize an assignment record for direct invocations of constructors on struct locals
-                if ((method) != null && (method.Method.Name == ".ctor")) {
+                if ((method != null) && (method.Method.Name == ".ctor")) {
                     var t = thisVar.GetActualType(TypeSystem);
                     var synthesizedAssignment = new FunctionAnalysis1stPass.Assignment(
                         pni, StatementIndex, NodeIndex, thisVar.Name,
@@ -749,6 +750,7 @@ namespace JSIL.Transforms {
         public readonly HashSet<HashSet<FieldInfo>> RecursivelyMutatedFields;
         private readonly HashSet<string> ModifiedVariables;
         private readonly HashSet<string> EscapingVariables;
+        public readonly HashSet<string> IndirectSideEffectVariables;
         public readonly string ResultVariable;
         public readonly bool ResultIsNew;
         public readonly bool ViolatesThisReferenceImmutability;
@@ -767,6 +769,15 @@ namespace JSIL.Transforms {
             FunctionCache = functionCache;
             Data = data;
             IsSealed = isSealed;
+
+            if (data == null)
+                throw new ArgumentNullException("data");
+            else if (data.Function == null)
+                throw new ArgumentNullException("data.Function");
+            else if (data.Function.Method == null)
+                throw new ArgumentNullException("data.Function.Method");
+            else if (data.Function.Method.Method == null)
+                throw new ArgumentNullException("data.Function.Method.Method");
 
             if (data.Function.Method.Method.Metadata.HasAttribute("JSIsPure"))
                 _IsPure = true;
@@ -940,12 +951,58 @@ namespace JSIL.Transforms {
             }
 
             if (
-                !data.Function.Method.Method.IsStatic && 
-                data.Function.Method.Method.DeclaringType.IsImmutable &&
-                data.ReassignsThisReference
+                (
+                    !data.Function.Method.Method.IsStatic && 
+                    data.Function.Method.Method.DeclaringType.IsImmutable &&
+                    data.ReassignsThisReference
+                ) ||
+                data.Function.Method.Method.Name == ".ctor"
             ) {
                 ViolatesThisReferenceImmutability = true;
                 ModifiedVariables.Add("this");
+            }
+
+            IndirectSideEffectVariables = new HashSet<string>();
+
+            // Invocations that reassign or mutate this need to have a synthesized side effect
+            foreach (var invocation in data.Invocations) {
+                if (invocation.ThisVariable == null)
+                    continue;
+                else if (IndirectSideEffectVariables.Contains(invocation.ThisVariable))
+                    continue;
+
+                bool shouldSynthesizeSideEffect = false;
+                do {
+                    var jsm = invocation.Method;
+                    if (jsm == null) {
+                        shouldSynthesizeSideEffect = true;
+                        break;
+                    }
+
+                    var targetSecondPass = functionCache.GetSecondPass(invocation.Method, data.Identifier);
+                    if (targetSecondPass == null) {
+                        shouldSynthesizeSideEffect = true;
+                        break;
+                    }
+
+                    if (targetSecondPass.ViolatesThisReferenceImmutability) {
+                        shouldSynthesizeSideEffect = true;
+                        break;
+                    } else if (
+                        (targetSecondPass.Data != null) && 
+                        targetSecondPass.Data.SideEffects.Any(se => se.Variable == "this")
+                    ) {
+                        // FIXME: Is this necessary or is it overly conservative?
+                        shouldSynthesizeSideEffect = true;
+                        break;
+                    }
+
+                    if (!shouldSynthesizeSideEffect)
+                        ;
+                } while (false);
+
+                if (shouldSynthesizeSideEffect)
+                    IndirectSideEffectVariables.Add(invocation.ThisVariable);
             }
 
             MutatedFields = new HashSet<FieldInfo>(
@@ -1006,11 +1063,14 @@ namespace JSIL.Transforms {
             }
 
             VariableAliases = new Dictionary<string, HashSet<string>>();
+            IndirectSideEffectVariables = new HashSet<string>();
 
             ResultVariable = null;
             ResultIsNew = method.Metadata.HasAttribute("JSIL.Meta.JSResultIsNew");
 
             MutatedFields = null;
+
+            ViolatesThisReferenceImmutability = (method.Name == ".ctor");
 
             Trace(method.Member.FullName);
         }

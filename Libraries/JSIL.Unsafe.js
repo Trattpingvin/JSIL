@@ -374,7 +374,7 @@ JSIL.ImplementExternals("System.Runtime.InteropServices.GCHandle", function ($) 
   $.RawMethod(false, "$internalCtor", function (obj) {
     this._target = obj;
 
-    if (obj && obj.__ThisType__.__IsDelegate__) {
+    if (obj && obj.__ThisType__ && obj.__ThisType__.__IsDelegate__) {
       this._pointer = obj.$pin();
     } else {
       this._pointer = JSIL.PinAndGetPointer(obj, 0);
@@ -438,6 +438,21 @@ JSIL.ImplementExternals("System.Runtime.InteropServices.GCHandle", function ($) 
   );
 });
 
+JSIL.MakeEnum(
+  {
+    FullName: "System.Runtime.InteropServices.GCHandleType", 
+    BaseType: $jsilcore.TypeRef("System.Int32"), 
+    IsPublic: true, 
+    IsFlags: false, 
+  }, 
+  {
+    Weak: 0, 
+    WeakTrackResurrection: 1, 
+    Normal: 2, 
+    Pinned: 3, 
+  }
+);
+
 JSIL.ImplementExternals("System.Buffer", function ($interfaceBuilder) {
   var $ = $interfaceBuilder;
 
@@ -489,6 +504,11 @@ JSIL.MakeClass("System.Object", "JSIL.MemoryRange", true, [], function ($) {
       } else {
         this.length = buffer.byteLength;
       }
+
+      if (this.offset < 0)
+        JSIL.RuntimeError("MemoryRange offset must be >= 0");
+      else if (this.length < 0)
+        JSIL.RuntimeError("MemoryRange length must be >= 0");
 
       if (typeof (Map) !== "undefined") {
         this.viewCache = new Map();
@@ -1421,7 +1441,9 @@ JSIL.UnmarshalStruct = function Struct_Unmarshal (struct, bytes, offset) {
 };
 
 JSIL.GetNativeSizeOf = function GetNativeSizeOf (typeObject, forPInvoke) {
-  if (typeObject.__IsNativeType__) {
+  if (!typeObject) {
+    return -1;
+  } if (typeObject.__IsNativeType__) {
     var arrayCtor = JSIL.GetTypedArrayConstructorForElementType(typeObject, false);
     if (arrayCtor)
       return arrayCtor.BYTES_PER_ELEMENT;
@@ -1604,6 +1626,9 @@ JSIL.$MakeStructMarshalFunctionSource = function (typeObject, marshal, isConstru
   var fields = JSIL.GetFieldList(typeObject);
   var nativeSize = JSIL.GetNativeSizeOf(typeObject, forPInvoke);
   var nativeAlignment = JSIL.GetNativeAlignmentOf(typeObject, forPInvoke);
+  if (nativeSize < 0)
+    JSIL.RuntimeError("Type '" + typeObject.__FullName__ + "' cannot be marshalled");
+
   var scratchBuffer = new ArrayBuffer(nativeSize);
   var scratchRange = JSIL.GetMemoryRangeForBuffer(scratchBuffer);
 
@@ -1816,10 +1841,6 @@ JSIL.$MakeFieldMarshaller = function (typeObject, field, viewBytes, nativeView, 
       var unmarshaller = JSIL.$GetStructUnmarshaller(field.type);
       var cachedInstanceKey = "this.cached$" + field.name;
 
-      // FIXME: Is this going to work consistently?
-      var template = JSIL.CreateInstanceOfType(field.type, null);
-
-
       adapterSource.push("var cachedInstance = " + cachedInstanceKey + ";");
       adapterSource.push("if (cachedInstance !== null) {");
       adapterSource.push("  unmarshaller(cachedInstance, this.$bytes, offset);");
@@ -1841,6 +1862,40 @@ JSIL.$MakeFieldMarshaller = function (typeObject, field, viewBytes, nativeView, 
   } else {
     return JSIL.$MakeUnmarshallableFieldAccessor(field.name); 
   }
+};
+
+JSIL.$MakeProxyFieldGetter = function (typeObject, field, viewBytes, nativeView) {
+  var fieldOffset = field.offsetBytes | 0;
+  var fieldSize = field.sizeBytes | 0;
+  var proxyConstructor = JSIL.$GetStructElementProxyConstructor(field.type);
+
+  if (!field.type.__IsStruct__)
+    JSIL.RuntimeError("Field must be a struct");
+
+  var adapterSource = [
+    "var offset = ((this.$offset | 0) + " + fieldOffset + ") | 0;"
+  ];
+
+  var unmarshalConstructor = JSIL.$GetStructUnmarshalConstructor(field.type);
+  var unmarshaller = JSIL.$GetStructUnmarshaller(field.type);
+  var cachedInstanceKey = "this.cached$" + field.name;
+
+  adapterSource.push("var cachedInstance = " + cachedInstanceKey + ";");
+  adapterSource.push("if (cachedInstance !== null) {");
+  adapterSource.push("  cachedInstance.retargetBytes(this.$bytes, this.$offset + fieldOffset);");
+  adapterSource.push("  return cachedInstance;");
+  adapterSource.push("}");
+  adapterSource.push("");
+  adapterSource.push("return " + cachedInstanceKey + " = new proxyConstructor(this.$bytes, this.$offset + fieldOffset);");
+
+  return JSIL.CreateNamedFunction(
+    typeObject.__FullName__ + ".Proxy.get_" + field.name, [],
+    adapterSource.join("\n"),
+    { 
+      proxyConstructor: proxyConstructor,
+      fieldOffset: fieldOffset
+    }
+  );
 };
 
 JSIL.$MakeElementProxyConstructor = function (typeObject) {
@@ -1870,6 +1925,14 @@ JSIL.$MakeElementProxyConstructor = function (typeObject) {
 
     if (size <= 0) {
       getter = setter = JSIL.$MakeUnmarshallableFieldAccessor(field.name);
+    } else if (field.type.__IsStruct__) {
+      // HACK: Struct fields must be element proxies themselves so writes like this work:
+      // proxy.Field.Field += 1
+      // TODO: Maybe hoist this into the compiler to make it cheaper for non-write scenarios?
+      var nativeView = marshallingScratchBuffer.getView(field.type, false);
+      getter = JSIL.$MakeProxyFieldGetter(typeObject, field, viewBytes, nativeView);
+      setter = JSIL.$MakeFieldMarshaller(typeObject, field, viewBytes, nativeView, true);
+      constructorBody.push("this.cached$" + field.name + " = null;");
     } else {
       var nativeView = marshallingScratchBuffer.getView(field.type, false);
       getter = JSIL.$MakeFieldMarshaller(typeObject, field, viewBytes, nativeView, false);

@@ -183,7 +183,7 @@ namespace JSIL {
             return true;
         }
 
-        public FunctionAnalysis1stPass GetFirstPass (QualifiedMemberIdentifier method, QualifiedMemberIdentifier forMethod) {
+        public FunctionAnalysis1stPass GetFirstPass (QualifiedMemberIdentifier method, QualifiedMemberIdentifier forCaller) {
             var entry = GetCacheEntry(method, false);
 
             if ((entry == null) || (entry.Expression == null))
@@ -217,7 +217,11 @@ namespace JSIL {
                 (entry.SecondPass == null) && 
                 (entry.Expression != null)
             ) {
-                if (entry.Definition.IsAbstract)
+                if (
+                    entry.Definition.IsAbstract ||
+                    // HACK: Fixes ExpressionsExecution and ExpressionsTest???
+                    (entry.FirstPass == null)
+                )
                     entry.SecondPass = CreateSecondPassForAbstractMethod(entry.Info);
                 else if (entry.Definition.IsVirtual)
                     entry.SecondPass = CreateSecondPassForOverridableMethod(entry.Info, entry.FirstPass);
@@ -228,7 +232,7 @@ namespace JSIL {
             return entry.SecondPass;
         }
 
-        public FunctionAnalysis2ndPass GetSecondPass (JSMethod method, QualifiedMemberIdentifier forMethod) {
+        public FunctionAnalysis2ndPass GetSecondPass (JSMethod method, QualifiedMemberIdentifier forCaller) {
             if (method == null)
                 return null;
 
@@ -240,7 +244,7 @@ namespace JSIL {
             if (entry == null)
                 return null;
 
-            GetFirstPass(id, forMethod);
+            GetFirstPass(id, forCaller);
 
             if (!TryAcquireStaticAnalysisDataLock(entry, method.QualifiedIdentifier))
                 return null;
