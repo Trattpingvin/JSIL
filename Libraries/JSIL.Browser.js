@@ -2,7 +2,7 @@
 
 var currentLogLine = null;
 
-var webglEnabled = false;
+var webglEnabled = true;
 
 var $jsilbrowserstate = window.$jsilbrowserstate = {
   allFileNames: [],
